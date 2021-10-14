@@ -13,7 +13,7 @@ username=input('Enter email id of user : ')
 password=username.split('.')[0]+str(random.randrange(1,9))
 inc = input('Enter INC reference :')
 # create webdriver object
-driver=webdriver.Chrome(executable_path="C:\\Users\\Downloads\\chromedriver.exe")
+driver=webdriver.Chrome(executable_path="C:\\Users\\YS\\Downloads\\chromedriver.exe")
 
 urls=["",""]
 
