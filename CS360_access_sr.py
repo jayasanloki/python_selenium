@@ -40,7 +40,7 @@ Thanks,
 EIM Team'''
 	body=part1+part2+part3
 	msg.attach(MIMEText(body, 'plain'))
-	s = smtplib.SMTP('appsmtp-north.internal.vodafone.com:25')
+	s = smtplib.SMTP(':25')
 	s.ehlo
 	text =  msg.as_string()
 	###s.sendmail(fromaddr, (toaddr+tocc).split(';'), text)
