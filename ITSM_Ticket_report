@@ -1,9 +1,8 @@
-# Multiple sessions are not working(logging out sesssion immediately) 'do you wish to override' alert is working for manual session but not working for script session
-# When teting confirmed that script has to be triggered >= 15 minutes. Else 'Report must be generated' alert is thrown
+# Important constraint is user account should not have any active session for ITSM and report must be configured in AR System Report Console before run.
+# For manual login overriding session is possible. But for automated script the session is closed immediately with error
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import UnexpectedAlertPresentException
-#from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.support.ui import WebDriverWait as wait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -12,9 +11,10 @@ from selenium.webdriver.support.select import Select
 import time
 import os
 import shutil
-
+# Script has to wait for 1 or 2 seconds till download is complete else the script goes to main page for logout and download is interrupted error.
 def every_downloads_chrome(driver):
     if not driver.current_url.startswith("chrome://downloads"):
+        # Just to show progress of file download
         driver.get("chrome://downloads/")
     return driver.execute_script("""
         var items = document.querySelector('downloads-manager')
@@ -22,54 +22,56 @@ def every_downloads_chrome(driver):
         if (items.every(e => e.state === "COMPLETE"))
             return items.map(e => e.fileUrl || e.file_url);
         """)
+# Move file to shared drive for ADO to pick up and process
 def move_files():
     source=r"C:\Users\KumarL1\Downloads"
-    destination=r"\\<shared-drive>\dms_\ADO_FILES"
+    destination=r"\\<Shared drive>\dms_dump\ADO_FILES"
     f="\\ticket_report_loki.xls"
     allfiles = os.listdir(source)
     for f in allfiles:
         shutil.move(source +"\\" + f, destination +"\\" + f)
     print('File moved to shared drive')
+# Checkout the chrome version and download the driver accordingly. Use of cache install() and executable path of local chrome exe is throwing error due to privileges
 driver=webdriver.Chrome(executable_path="C:\\Users\\KumarL1\\Documents\\chromedriver.exe")
-driver.get("http://oneitsm.com/")
+driver.get("http://oneitsm.onbmc.com/")
 driver.maximize_window()
-
+# Handles Microsoft login page
 wait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='i0116']")))
-ActionChains(driver).click(driver.find_element_by_name("loginfmt")).send_keys(<username>).perform()
+ActionChains(driver).click(driver.find_element_by_name("loginfmt")).send_keys(<email id>).perform()
 main_page = driver.current_window_handle
 ActionChains(driver).click(driver.find_element_by_id("idSIButton9")).perform()
-wait(driver, 10).until(EC.url_contains(<authentication_URL>))
+# Check whether second URL is loaded for authentication
+wait(driver, 10).until(EC.url_contains("corp-sts-prod.vodafone.com/adfs/ls/wia"))
+# Switching to alert URL for login
 login_page=''
 for handle in driver.window_handles:
     if handle != main_page:
         login_page = handle
 driver.switch_to.window(login_page)
-
-#print(driver.current_url)
-#wait(driver, 10).until(EC.alert_is_present())
-# Login
-driver.get('https://<username>:<password>@'+driver.current_url[8:])
-try:
-    time.sleep(2)
-    wait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='WIN_0_304316340']/div"))).click()
-except UnexpectedAlertPresentException:
-    alert=driver.switch_to.alert
-    alert.accept()
-    time.sleep(5)
-    wait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='WIN_0_304316340']/div"))).click()
+# Slice the https:// and login to the session URL with passing credentials. This will handle that second URL alert automatically
+driver.get('https://<mail id>:<password>@'+driver.current_url[8:])
+# Check whether login is complete by clicking on side panel. This by default opens AR system administration in the navigation menu
+wait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='WIN_0_304316340']/div"))).click()
 wait(driver, 10).until(EC.element_to_be_clickable((By.LINK_TEXT,"AR System Report Console"))).click()
 main_page = driver.current_window_handle
+# Double click on report will open a new browser tab. so switiching to that
 ActionChains(driver).double_click(driver.find_element_by_xpath("//*[@id='T93250']/tbody/tr[2]/td[2]/nobr/span")).perform()
 login_page=''
 for handle in driver.window_handles:
     if handle != main_page:
         login_page = handle
 driver.switch_to.window(login_page)
+# Export button. The popup comes in same page no need to handle it second page
 wait(driver, 10).until(EC.element_to_be_clickable((By.XPATH,"//*[@id='toolbar']/table/tbody/tr[2]/td[5]/input"))).click()
+# Dropdown list for required format
 sel = Select(driver.find_element_by_xpath("//*[@id='exportFormat']"))
 sel.select_by_visible_text("Excel")
+# Below gap is needed to load the file in excel format. If removed, throws ElementClickIntercepted error or Report need to generate First error
+time.sleep(3)
 wait(driver, 10).until(EC.element_to_be_clickable((By.XPATH,"//*[@id='exportReportDialogokButton']/input"))).click()
-path= wait(driver, 20, 1).until(every_downloads_chrome)
+# File takes 1 or 2 second to download so delaying script before going to main page by opening downloads. Sleep is not working - file is not getting downloaded. 
+path= wait(driver, 100, 1).until(every_downloads_chrome)
+# After download go to main page and logout
 driver.switch_to.window(main_page)
 wait(driver, 10).until(EC.element_to_be_clickable((By.LINK_TEXT,"Logout"))).click()
 driver.quit()
