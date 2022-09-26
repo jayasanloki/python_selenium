@@ -14,7 +14,7 @@ from email.mime.text import MIMEText
 import random
 
 # get mailid and INC reference as input. Once cortex integrated, it will provide INC & mailid as cmd line arguments
-username=input('Enter email id of user : ')
+username=input('Enter email id of the user : ')
 inc = input('Enter INC reference : ')
 # password with random int
 password=username.split('.')[0]+str(random.randrange(1,9))
